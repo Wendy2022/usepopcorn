@@ -29,7 +29,7 @@ export default function StarRating({
 }) {
   const [rating, setRating] = useState(defaultRating);
   const [tempRating, setTempRating] = useState(0);
-  console.log(messages.length, maxRating);
+
   function handleRating(rating) {
     setRating(rating);
     onSetRating(rating);
