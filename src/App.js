@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import StarRating from "./StarRating";
-const tempMovieData = [
+/* const tempMovieData = [
   {
     imdbID: "tt1375666",
     Title: "Inception",
@@ -45,7 +45,7 @@ const tempWatchedData = [
     imdbRating: 8.5,
     userRating: 9,
   },
-];
+]; */
 
 const average = (arr) =>
   arr.reduce((acc, cur, i, arr) => acc + cur / arr.length, 0);
@@ -71,14 +71,18 @@ export default function App() {
   function handleDeleteWatched(id) {
     setWatched((watched) => watched.filter((m) => m.imdbID !== id));
   }
+
   useEffect(
     function () {
+      const controller = new AbortController();
+
       async function fetchMovies() {
         try {
           setIsLoading(true);
           setError("");
           const res = await fetch(
-            `https://www.omdbapi.com/?apikey=${KEY}&s=${query}`
+            `https://www.omdbapi.com/?apikey=${KEY}&s=${query}`,
+            { signal: controller.signal }
           );
           if (!res.ok) {
             throw new Error("Something went wrong with fetching movies");
@@ -89,9 +93,12 @@ export default function App() {
           }
 
           setMovies(data.Search);
+          setError("");
         } catch (err) {
-          console.error(err.message);
-          setError(err.message);
+          if (err.name !== "AbortError") {
+            console.log(err.message);
+            setError(err.message);
+          }
         } finally {
           setIsLoading(false);
         }
@@ -100,7 +107,12 @@ export default function App() {
         setMovies([]);
         setError("");
       }
+      handleCloseMovie();
       fetchMovies();
+
+      return function () {
+        controller.abort();
+      };
     },
     [query]
   );
@@ -288,6 +300,20 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
     onAddWatched(newWatchedMovie);
     onCloseMovie();
   }
+  useEffect(
+    function () {
+      function callback(e) {
+        if (e.code === "Escape") {
+          onCloseMovie();
+        }
+      }
+      document.addEventListener("keydown", callback);
+      return function () {
+        document.removeEventListener("keydown", callback);
+      };
+    },
+    [onCloseMovie]
+  );
   const isWatched = watched.map((movie) => movie.imdbID).includes(selectedId);
   const watchedUserRating = watched.find(
     (movie) => movie.imdbID === selectedId
@@ -297,7 +323,7 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
       async function getMovieDetails() {
         setIsLoading(true);
         const res = await fetch(
-          `http://www.omdbapi.com/?apikey=${KEY}&i=${selectedId}`
+          `https://www.omdbapi.com/?apikey=${KEY}&i=${selectedId}`
         );
         const data = await res.json();
         setMovie(data);
@@ -306,6 +332,19 @@ function MovieDetails({ selectedId, onCloseMovie, onAddWatched, watched }) {
       getMovieDetails();
     },
     [selectedId]
+  );
+  useEffect(
+    function () {
+      if (!title) {
+        return;
+      }
+      document.title = `Movie| ${title}`;
+
+      return function () {
+        document.title = "usePopcorn";
+      };
+    },
+    [title]
   );
   return (
     <div className="details">
